@@ -1,0 +1,35 @@
+# Backend Dependencies
+
+# FastAPI Core
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# Database
+sqlalchemy>=2.0.25
+pymysql>=1.1.0
+alembic>=1.13.1
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.1.2
+
+# Email & OAuth
+google-auth>=2.27.0
+google-auth-oauthlib>=1.2.0
+aiosmtplib>=3.0.1
+emails>=0.6
+
+# Payment Gateway (Razorpay)
+razorpay>=1.4.1
+
+# Validation & Utilities
+pydantic[email]>=2.5.0
+email-validator>=2.1.0
+python-dotenv>=1.0.0
+python-dateutil>=2.8.2
+
+# Reports & Export
+openpyxl>=3.1.2
+reportlab>=4.0.8

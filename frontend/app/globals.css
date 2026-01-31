@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light only;
+}
+
+/* Force light mode */
+html {
+  color-scheme: light only;
+}
+
+body {
+  background: #f9fafb;
+  color: #171717;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Force dark text on all input elements */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #000000 !important;
+  opacity: 1;
+  caret-color: #000000;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af !important;
+  opacity: 1;
+}
+
+/* Autofill fix for Chrome */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+}
+
+/* Focus states */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+}
