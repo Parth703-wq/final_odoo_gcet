@@ -53,11 +53,13 @@ class InvoiceItemResponse(BaseModel):
     unit: str
     unit_price: float
     tax_rate: float
+    cgst: float = 0.0
+    sgst: float = 0.0
+    igst: float = 0.0
     tax_amount: float
     line_total: float
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class InvoiceCreate(BaseModel):
@@ -101,10 +103,9 @@ class InvoiceResponse(BaseModel):
     notes: Optional[str] = None
     terms_conditions: Optional[str] = None
     created_at: datetime
-    items: List[InvoiceItemResponse] = []
+    items: List[InvoiceItemResponse]
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class InvoiceListResponse(BaseModel):
@@ -158,8 +159,7 @@ class PaymentResponse(BaseModel):
     payment_date: datetime
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class PaymentListResponse(BaseModel):

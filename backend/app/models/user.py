@@ -66,6 +66,7 @@ class User(Base):
     orders = relationship("Order", back_populates="customer", foreign_keys="Order.customer_id", lazy="dynamic")
     vendor_orders = relationship("Order", back_populates="vendor", foreign_keys="Order.vendor_id", lazy="dynamic")
     invoices = relationship("Invoice", back_populates="customer", foreign_keys="Invoice.customer_id", lazy="dynamic")
+    payments = relationship("Payment", back_populates="customer", lazy="dynamic")
     
     @property
     def full_name(self) -> str:

@@ -10,7 +10,8 @@ import razorpay
 import hmac
 import hashlib
 
-from app.models.invoice import Invoice, InvoiceItem, Payment, InvoiceStatus, PaymentStatus, PaymentMethod
+from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus
+from app.models.payment import Payment, PaymentStatus, PaymentMethod
 from app.models.order import Order, OrderStatus
 from app.models.user import User
 from app.core.config import settings
@@ -57,52 +58,62 @@ class InvoiceService:
         if not order:
             raise ValueError("Order not found")
         
-        if order.status == OrderStatus.QUOTATION:
-            raise ValueError("Cannot create invoice from unconfirmed quotation")
-        
         # Check if invoice already exists
-        existing = self.db.query(Invoice).filter(Invoice.order_id == order_id).first()
-        if existing:
-            return existing
+        invoice = self.db.query(Invoice).filter(Invoice.order_id == order_id).first()
         
-        # Get customer and vendor
-        customer = self.db.query(User).filter(User.id == order.customer_id).first()
-        vendor = self.db.query(User).filter(User.id == order.vendor_id).first()
+        if invoice:
+            if invoice.status != InvoiceStatus.DRAFT:
+                return invoice
+            # If draft, update it to match latest order data
+            # Properly clear previous items to sync session
+            invoice.items = [] # This is better for sync than query.delete
+            # Reset values that will be recalculated
+            invoice.subtotal = 0
+            invoice.tax_amount = 0
+            invoice.total_amount = 0
+            invoice.rental_start_date = order.rental_start_date
+            invoice.rental_end_date = order.rental_end_date
+            invoice.security_deposit = order.security_deposit
+            invoice.delivery_charges = order.delivery_charges
+            invoice.late_fees = order.late_fees_applied
+        else:
+            # Get customer and vendor
+            customer = self.db.query(User).filter(User.id == order.customer_id).first()
+            vendor = self.db.query(User).filter(User.id == order.vendor_id).first()
+            
+            invoice = Invoice(
+                invoice_number=self.generate_invoice_number(),
+                order_id=order.id,
+                customer_id=order.customer_id,
+                vendor_id=order.vendor_id,
+                status=InvoiceStatus.DRAFT,
+                invoice_date=datetime.utcnow(),
+                due_date=datetime.utcnow() + timedelta(days=due_days),
+                rental_start_date=order.rental_start_date,
+                rental_end_date=order.rental_end_date,
+                billing_address=order.billing_address,
+                delivery_address=order.delivery_address,
+                vendor_company_name=vendor.company_name if vendor else None,
+                vendor_gstin=vendor.gstin if vendor else None,
+                vendor_logo=vendor.company_logo if vendor else None,
+                customer_name=customer.full_name if customer else None,
+                customer_gstin=customer.gstin if customer else None,
+                tax_rate=order.tax_rate,
+                discount_amount=order.discount_amount,
+                discount_code=order.discount_code,
+                security_deposit=order.security_deposit,
+                delivery_charges=order.delivery_charges,
+                late_fees=order.late_fees_applied,
+                notes=notes
+            )
+            self.db.add(invoice)
         
-        invoice = Invoice(
-            invoice_number=self.generate_invoice_number(),
-            order_id=order.id,
-            customer_id=order.customer_id,
-            vendor_id=order.vendor_id,
-            status=InvoiceStatus.DRAFT,
-            invoice_date=datetime.utcnow(),
-            due_date=datetime.utcnow() + timedelta(days=due_days),
-            rental_start_date=order.rental_start_date,
-            rental_end_date=order.rental_end_date,
-            billing_address=order.billing_address,
-            delivery_address=order.delivery_address,
-            vendor_company_name=vendor.company_name if vendor else None,
-            vendor_gstin=vendor.gstin if vendor else None,
-            vendor_logo=vendor.company_logo if vendor else None,
-            customer_name=customer.full_name if customer else None,
-            customer_gstin=customer.gstin if customer else None,
-            subtotal=order.subtotal,
-            tax_rate=order.tax_rate,
-            discount_amount=order.discount_amount,
-            discount_code=order.discount_code,
-            security_deposit=order.security_deposit,
-            delivery_charges=order.delivery_charges,
-            late_fees=order.late_fees_applied,
-            notes=notes
-        )
-        
-        self.db.add(invoice)
         self.db.flush()
         
         # Create invoice items from order items
         for order_item in order.items:
             invoice_item = InvoiceItem(
-                invoice_id=invoice.id,
+                invoice=invoice,
                 product_name=order_item.product_name,
                 product_sku=order_item.product_sku,
                 description=f"Rental: {order_item.rental_start_date.strftime('%Y-%m-%d')} to {order_item.rental_end_date.strftime('%Y-%m-%d')}",
@@ -114,14 +125,20 @@ class InvoiceService:
                 tax_rate=order.tax_rate
             )
             invoice_item.tax_amount = invoice_item.quantity * invoice_item.unit_price * (invoice_item.tax_rate / 100)
-            invoice_item.line_total = (invoice_item.quantity * invoice_item.unit_price) + invoice_item.tax_amount
+            # Default to split GST
+            invoice_item.cgst = invoice_item.tax_amount / 2
+            invoice_item.sgst = invoice_item.tax_amount / 2
+            invoice_item.igst = 0.0
             
-            self.db.add(invoice_item)
+            invoice_item.line_total = (invoice_item.quantity * invoice_item.unit_price) + invoice_item.tax_amount
+            # No need to append explicitly if invoice=invoice is set, BUT it helps some sync issues
+            if invoice_item not in invoice.items:
+                invoice.items.append(invoice_item)
         
         # Add security deposit as line item if applicable
         if order.security_deposit > 0:
             deposit_item = InvoiceItem(
-                invoice_id=invoice.id,
+                invoice=invoice,
                 product_name="Security Deposit",
                 description="Refundable security deposit",
                 quantity=1,
@@ -131,8 +148,11 @@ class InvoiceService:
                 tax_amount=0,
                 line_total=order.security_deposit
             )
-            self.db.add(deposit_item)
+            if deposit_item not in invoice.items:
+                invoice.items.append(deposit_item)
         
+        self.db.flush()
+        # Ensure items are matched in the object
         invoice.calculate_totals()
         
         self.db.commit()
@@ -141,8 +161,9 @@ class InvoiceService:
         return invoice
     
     def get_invoice(self, invoice_id: int) -> Optional[Invoice]:
-        """Get invoice by ID"""
-        return self.db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        """Get invoice by ID with items joined"""
+        from sqlalchemy.orm import joinedload
+        return self.db.query(Invoice).options(joinedload(Invoice.items)).filter(Invoice.id == invoice_id).first()
     
     def get_invoice_by_number(self, invoice_number: str) -> Optional[Invoice]:
         """Get invoice by number"""

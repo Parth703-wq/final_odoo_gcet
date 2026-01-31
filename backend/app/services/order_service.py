@@ -219,7 +219,6 @@ class OrderService:
             existing_item.calculate_total(cart.tax_rate)
         else:
             order_item = OrderItem(
-                order_id=cart.id,
                 product_id=product.id,
                 variant_id=item.variant_id,
                 product_name=product.name,
@@ -231,9 +230,10 @@ class OrderService:
                 rental_period_type=item.rental_period_type
             )
             order_item.calculate_total(cart.tax_rate)
+            cart.items.append(order_item)
             cart.security_deposit += product.security_deposit * item.quantity
-            self.db.add(order_item)
         
+        self.db.flush()
         cart.calculate_totals()
         self.db.commit()
         self.db.refresh(cart)
@@ -271,6 +271,8 @@ class OrderService:
             raise ValueError("Order not found")
         
         if order.status != OrderStatus.QUOTATION:
+            if order.status == OrderStatus.SALE_ORDER:
+                return order
             raise ValueError("Only quotations can be confirmed")
         
         # Verify availability for all items
@@ -288,6 +290,7 @@ class OrderService:
         
         # Update order
         order.status = OrderStatus.SALE_ORDER
+        order.delivery_method = data.delivery_method
         order.billing_address = data.billing_address
         order.delivery_address = data.delivery_address
         order.downpayment_amount = data.downpayment_amount or 0

@@ -11,7 +11,8 @@ import io
 import csv
 
 from app.models.order import Order, OrderStatus
-from app.models.invoice import Invoice, Payment, InvoiceStatus
+from app.models.invoice import Invoice, InvoiceStatus
+from app.models.payment import Payment
 from app.models.product import Product
 from app.models.user import User, UserRole
 

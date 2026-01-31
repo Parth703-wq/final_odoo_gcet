@@ -4,7 +4,7 @@ API v1 Router
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, products, orders, invoices, dashboard, admin
+from app.api.v1.endpoints import auth, products, orders, invoices, dashboard, admin, payments
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(orders.router)
 api_router.include_router(invoices.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(admin.router)
+api_router.include_router(payments.router)
