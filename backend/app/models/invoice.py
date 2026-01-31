@@ -1,7 +1,7 @@
 """
 Invoice Model
-Handles invoicing and payments
-"""
+3: Handles invoicing and payments
+4: """
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, Text, Float, ForeignKey, JSON
 from sqlalchemy.orm import relationship
@@ -20,24 +20,6 @@ class InvoiceStatus(str, enum.Enum):
     PARTIALLY_PAID = "partially_paid"
     CANCELLED = "cancelled"
     REFUNDED = "refunded"
-
-
-class PaymentStatus(str, enum.Enum):
-    """Payment status"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    REFUNDED = "refunded"
-
-
-class PaymentMethod(str, enum.Enum):
-    """Payment method"""
-    RAZORPAY = "razorpay"
-    CARD = "card"
-    UPI = "upi"
-    NETBANKING = "netbanking"
-    CASH = "cash"
 
 
 class Invoice(Base):
@@ -111,29 +93,39 @@ class Invoice(Base):
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="invoice", lazy="dynamic")
     
-    def calculate_gst(self, is_inter_state: bool = False):
-        """Calculate GST (CGST + SGST or IGST)"""
-        if is_inter_state:
-            self.igst = self.subtotal * (self.tax_rate / 100)
-            self.cgst = 0.0
-            self.sgst = 0.0
-        else:
-            half_rate = self.tax_rate / 2
-            self.cgst = self.subtotal * (half_rate / 100)
-            self.sgst = self.subtotal * (half_rate / 100)
-            self.igst = 0.0
+    def calculate_gst(self):
+        """Calculate GST based on subtotal"""
+        self.tax_amount = self.subtotal * (self.tax_rate / 100)
+        # Default to split GST (CGST/SGST)
+        self.cgst = self.tax_amount / 2
+        self.sgst = self.tax_amount / 2
+        self.igst = 0.0 # Standard local rental for now
         
-        self.tax_amount = self.cgst + self.sgst + self.igst
+        self.tax_amount = (self.cgst or 0.0) + (self.sgst or 0.0) + (self.igst or 0.0)
     
     def calculate_totals(self):
         """Recalculate invoice totals"""
-        self.subtotal = sum(item.line_total for item in self.items)
-        self.calculate_gst()
-        self.total_amount = (
-            self.subtotal + self.tax_amount + self.delivery_charges + 
-            self.security_deposit + self.late_fees - self.discount_amount
-        )
-        self.amount_due = self.total_amount - self.amount_paid
+        # Subtotal should be sum of untaxed amounts from product items only
+        product_items = [item for item in self.items if item.product_name != "Security Deposit"]
+        self.subtotal = sum(item.quantity * item.unit_price for item in product_items)
+        
+        # Sum up taxes from items
+        self.tax_amount = sum((item.tax_amount or 0.0) for item in self.items)
+        self.cgst = sum((item.cgst or 0.0) for item in self.items)
+        self.sgst = sum((item.sgst or 0.0) for item in self.items)
+        self.igst = sum((item.igst or 0.0) for item in self.items)
+        
+        # Total amount = subtotal + tax + delivery + deposit + late fees - discount
+        subtotal = self.subtotal or 0.0
+        tax = self.tax_amount or 0.0
+        delivery = self.delivery_charges or 0.0
+        deposit = self.security_deposit or 0.0
+        late = self.late_fees or 0.0
+        discount = self.discount_amount or 0.0
+        paid = self.amount_paid or 0.0
+        
+        self.total_amount = subtotal + tax + delivery + deposit + late - discount
+        self.amount_due = self.total_amount - paid
 
 
 class InvoiceItem(Base):
@@ -159,6 +151,9 @@ class InvoiceItem(Base):
     
     # Tax
     tax_rate = Column(Float, default=18.0)
+    cgst = Column(Float, default=0.0)
+    sgst = Column(Float, default=0.0)
+    igst = Column(Float, default=0.0)
     tax_amount = Column(Float, default=0.0)
     
     # Total
@@ -166,44 +161,3 @@ class InvoiceItem(Base):
     
     # Relationships
     invoice = relationship("Invoice", back_populates="items")
-
-
-class Payment(Base):
-    """Payment records"""
-    __tablename__ = "payments"
-    
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    payment_number = Column(String(50), unique=True, index=True)
-    
-    # References
-    invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=False)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
-    
-    # Payment Details
-    amount = Column(Float, nullable=False)
-    payment_method = Column(Enum(PaymentMethod), default=PaymentMethod.RAZORPAY)
-    status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
-    
-    # Razorpay
-    razorpay_order_id = Column(String(100), nullable=True)
-    razorpay_payment_id = Column(String(100), nullable=True)
-    razorpay_signature = Column(String(255), nullable=True)
-    
-    # Card details (masked)
-    card_last_four = Column(String(4), nullable=True)
-    card_brand = Column(String(20), nullable=True)
-    
-    # Transaction
-    transaction_id = Column(String(100), nullable=True)
-    transaction_response = Column(JSON, nullable=True)
-    
-    # Notes
-    notes = Column(Text, nullable=True)
-    failure_reason = Column(Text, nullable=True)
-    
-    # Timestamps
-    payment_date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    invoice = relationship("Invoice", back_populates="payments")

@@ -6,7 +6,8 @@ Exports all models for easy importing
 from app.models.user import User, UserRole
 from app.models.product import Product, ProductVariant, Category, ProductAttribute, RentalPeriodType
 from app.models.order import Order, OrderItem, OrderStatus, DeliveryMethod
-from app.models.invoice import Invoice, InvoiceItem, Payment, InvoiceStatus, PaymentStatus, PaymentMethod
+from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus
+from app.models.payment import Payment, PaymentStatus, PaymentMethod
 from app.models.reservation import Reservation, PickupDocument, ReturnDocument, ReservationStatus, StockStatus
 from app.models.settings import RentalPeriodConfig, CompanySettings, Coupon, Notification
 

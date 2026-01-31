@@ -98,11 +98,12 @@ class Order(Base):
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="order", lazy="dynamic")
     reservations = relationship("Reservation", back_populates="order", lazy="dynamic")
+    payments = relationship("Payment", back_populates="order")
     
     def calculate_totals(self):
         """Recalculate order totals"""
-        self.subtotal = sum(item.line_total for item in self.items)
-        self.tax_amount = self.subtotal * (self.tax_rate / 100)
+        self.subtotal = sum(item.line_subtotal for item in self.items)
+        self.tax_amount = sum(item.tax_amount for item in self.items)
         self.total_amount = self.subtotal + self.tax_amount + self.delivery_charges + self.security_deposit - self.discount_amount
     
     @property

@@ -134,8 +134,9 @@ class OrderListResponse(BaseModel):
 class OrderConfirm(BaseModel):
     """Confirm order (convert quotation to sale order)"""
     downpayment_amount: Optional[float] = None
-    billing_address: str
-    delivery_address: str
+    delivery_method: Optional[str] = "pickup"
+    billing_address: Optional[str] = ""
+    delivery_address: Optional[str] = ""
     terms_accepted: bool = True
 
 

@@ -23,17 +23,34 @@ router = APIRouter(prefix="/invoices", tags=["Invoices"])
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_invoice(
     data: InvoiceCreate,
-    current_user: User = Depends(require_vendor),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create invoice from order (Vendor only)"""
+    """Create invoice from order"""
     service = InvoiceService(db)
+    from app.services.order_service import OrderService
+    order_service = OrderService(db)
+    
+    order = order_service.get_order(data.order_id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        
+    # Check if authorized (vendor of order, or customer owner, or admin)
+    if current_user.id != order.vendor_id and current_user.id != order.customer_id and current_user.role.value != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create invoice for this order")
     
     try:
         invoice = service.create_invoice_from_order(data.order_id, notes=data.notes)
         return InvoiceResponse.model_validate(invoice)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        import traceback
+        with open("backend_error.log", "a") as f:
+            f.write(f"\n--- Error at {datetime.now()} ---\n")
+            f.write(traceback.format_exc())
+            f.write("\n")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("", response_model=InvoiceListResponse)
@@ -82,27 +99,85 @@ async def get_invoices(
     return InvoiceListResponse(**result)
 
 
-@router.get("/{invoice_id}", response_model=InvoiceResponse)
+@router.get("/{invoice_id}")
 async def get_invoice(
     invoice_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get invoice by ID"""
-    service = InvoiceService(db)
-    invoice = service.get_invoice(invoice_id)
+    """Get invoice by ID with production security and fail-safe data packing"""
+    from app.models.invoice import Invoice, InvoiceItem
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     
     if not invoice:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    # Check access (Admin, or Customer/Vendor who owns it)
+    is_admin = current_user.role.value == "admin"
+    is_owner = current_user.id == invoice.customer_id or current_user.id == invoice.vendor_id
+    if not (is_admin or is_owner):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this invoice")
+        
+    # Get items directly
+    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
+    print(f"DEBUG: Found {len(items)} items for Invoice {invoice_id} in GET request")
     
-    # Check access
-    if current_user.role.value == "customer" and invoice.customer_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    items_list = []
+    for item in items:
+        pack = {
+            "id": int(item.id),
+            "product_name": str(item.product_name),
+            "product_sku": str(item.product_sku or ""),
+            "description": str(item.description or ""),
+            "rental_start_date": item.rental_start_date.isoformat() if item.rental_start_date else None,
+            "rental_end_date": item.rental_end_date.isoformat() if item.rental_end_date else None,
+            "quantity": int(item.quantity or 1),
+            "unit": str(item.unit or "Units"),
+            "unit_price": float(item.unit_price or 0.0),
+            "tax_rate": float(item.tax_rate or 18.0),
+            "cgst": float(item.cgst or 0.0),
+            "sgst": float(item.sgst or 0.0),
+            "igst": float(item.igst or 0.0),
+            "tax_amount": float(item.tax_amount or 0.0),
+            "line_total": float(item.line_total or 0.0)
+        }
+        items_list.append(pack)
+        print(f"DEBUG: Packed item {item.id}: {item.product_name}")
     
-    if current_user.role.value == "vendor" and invoice.vendor_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    # Build response dict
+    response_data = {
+        "id": int(invoice.id),
+        "invoice_number": str(invoice.invoice_number),
+        "order_id": int(invoice.order_id),
+        "customer_id": int(invoice.customer_id),
+        "vendor_id": int(invoice.vendor_id),
+        "status": str(invoice.status.value) if hasattr(invoice.status, 'value') else str(invoice.status),
+        "invoice_date": invoice.invoice_date.isoformat() if invoice.invoice_date else None,
+        "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
+        "rental_start_date": invoice.rental_start_date.isoformat() if invoice.rental_start_date else None,
+        "rental_end_date": invoice.rental_end_date.isoformat() if invoice.rental_end_date else None,
+        "billing_address": str(invoice.billing_address or ""),
+        "delivery_address": str(invoice.delivery_address or ""),
+        "vendor_company_name": str(invoice.vendor_company_name or ""),
+        "customer_name": str(invoice.customer_name or ""),
+        "subtotal": float(invoice.subtotal or 0.0),
+        "tax_rate": float(invoice.tax_rate or 18.0),
+        "cgst": float(invoice.cgst or 0.0),
+        "sgst": float(invoice.sgst or 0.0),
+        "igst": float(invoice.igst or 0.0),
+        "tax_amount": float(invoice.tax_amount or 0.0),
+        "total_amount": float(invoice.total_amount or 0.0),
+        "amount_paid": float(invoice.amount_paid or 0.0),
+        "amount_due": float(invoice.amount_due or 0.0),
+        "notes": str(invoice.notes or ""),
+        "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
+        "items": items_list
+    }
     
-    return InvoiceResponse.model_validate(invoice)
+    # CRITICAL: Print JSON to terminal so I can see it in logs
+    import json
+    print(f"CRITICAL_JSON_OUT: {json.dumps(response_data)}")
+    return response_data
 
 
 @router.post("/{invoice_id}/post", response_model=InvoiceResponse)
