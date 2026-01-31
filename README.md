@@ -148,8 +148,6 @@ The platform includes a reservation system to prevent double-booking:
 
 ## 📝 License
 
-MIT License
 
-## 👨‍💻 Author
 
 Built for GCET Hackathon 2026
