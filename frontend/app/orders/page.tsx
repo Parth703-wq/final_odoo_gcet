@@ -5,6 +5,7 @@ import { ordersApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { ArrowRight } from 'lucide-react';
 
 export default function MyOrdersPage() {
     const { user } = useAuth();
@@ -18,7 +19,14 @@ export default function MyOrdersPage() {
     const fetchOrders = async () => {
         try {
             const data = await ordersApi.list();
-            setOrders(Array.isArray(data) ? data : []);
+            // Handle both array and paginated object responses
+            if (Array.isArray(data)) {
+                setOrders(data);
+            } else if (data && data.items && Array.isArray(data.items)) {
+                setOrders(data.items);
+            } else {
+                setOrders([]);
+            }
         } catch (error) {
             toast.error('Failed to load orders');
             setOrders([]);
@@ -117,12 +125,22 @@ export default function MyOrdersPage() {
                                             <span className="text-gray-600">Total: </span>
                                             <span className="text-xl font-bold text-gray-900">₹{order.total_amount || order.totalAmount || 0}</span>
                                         </div>
-                                        <Link
-                                            href={`/orders/${order.id}`}
-                                            className="text-blue-600 hover:text-blue-700 font-medium"
-                                        >
-                                            View Details →
-                                        </Link>
+                                        <div className="flex gap-4 items-center">
+                                            {order.status?.toLowerCase() === 'quotation' && (
+                                                <Link
+                                                    href={`/checkout/${order.id}`}
+                                                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-700 transition uppercase tracking-wider flex items-center gap-2 shadow-sm"
+                                                >
+                                                    Pay Now
+                                                </Link>
+                                            )}
+                                            <Link
+                                                href={`/orders/${order.id}`}
+                                                className="text-blue-600 hover:text-blue-700 font-black text-xs uppercase tracking-widest flex items-center gap-1 group"
+                                            >
+                                                View Details <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

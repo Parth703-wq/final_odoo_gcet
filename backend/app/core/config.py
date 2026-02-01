@@ -40,9 +40,16 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     
+    # Database Toggle
+    USE_SQLITE: str = os.getenv("USE_SQLITE", "true")
+    
     @property
     def DATABASE_URL(self) -> str:
-        """Construct MySQL database URL"""
+        """Construct database URL with SQLite fallback"""
+        use_sqlite = self.USE_SQLITE.lower() == "true"
+        if use_sqlite:
+            return "sqlite:///./rental_management.db"
+            
         if self.DB_PASSWORD:
             return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         return f"mysql+pymysql://{self.DB_USER}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -50,11 +57,11 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
-@lru_cache()
 def get_settings() -> Settings:
-    """Cached settings instance"""
+    """Get settings instance (no caching to pick up env changes)"""
     return Settings()
 
 

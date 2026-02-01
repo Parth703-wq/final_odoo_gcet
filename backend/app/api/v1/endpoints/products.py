@@ -2,9 +2,12 @@
 Product API Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import Optional, List
+import uuid
+import shutil
+import os
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_vendor, require_admin
@@ -18,6 +21,31 @@ from app.schemas.product import (
 from app.models.user import User
 
 router = APIRouter(prefix="/products", tags=["Products"])
+
+
+@router.post("/upload-image")
+async def upload_product_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_vendor)
+):
+    """Upload product image"""
+    # Create directory if it doesn't exist
+    upload_path = os.path.join("uploads", "products")
+    if not os.path.exists(upload_path):
+        os.makedirs(upload_path, exist_ok=True)
+    
+    # Generate unique filename
+    file_extension = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_path, filename)
+    
+    # Save file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Return relative URL for static mounting
+    url = f"/uploads/products/{filename}"
+    return {"url": url}
 
 
 # Category Routes

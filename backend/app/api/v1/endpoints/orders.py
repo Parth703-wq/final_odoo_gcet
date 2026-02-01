@@ -201,6 +201,16 @@ async def confirm_order(
     
     try:
         confirmed = service.confirm_order(order_id, data)
+        
+        # Generate Invoice automatically
+        try:
+            from app.services.invoice_service import InvoiceService
+            invoice_service = InvoiceService(db)
+            invoice_service.create_invoice_from_order(confirmed.id)
+        except Exception as e:
+            # Log error but don't fail the order confirmation
+            print(f"Failed to generate invoice for order {order_id}: {str(e)}")
+            
         return OrderResponse.model_validate(confirmed)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

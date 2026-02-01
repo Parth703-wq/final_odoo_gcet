@@ -43,18 +43,20 @@ export interface LoginRequest {
 export interface SignupRequest {
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
-    phone: string;
+    confirm_password: string;
+    first_name: string;
+    last_name: string;
+    phone?: string;
     role?: UserRole;
+    coupon_code?: string;
 
     // Vendor fields
-    companyName?: string;
+    company_name?: string;
     gstin?: string;
-    companyAddress?: string;
-    companyCity?: string;
-    companyState?: string;
-    companyPincode?: string;
+    address_line1?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
 }
 
 export interface AuthResponse {
@@ -154,28 +156,29 @@ export enum DeliveryMethod {
 
 export interface Order {
     id: number;
-    orderNumber: string;
-    customerId: number;
-    vendorId: number;
+    order_number: string;
+    customer_id: number;
+    vendor_id: number;
 
     // Status
     status: OrderStatus;
 
     // Period
-    startDate: string;
-    endDate: string;
-    rentalPeriod: string;
+    rental_start_date: string;
+    rental_end_date: string;
+    rental_period?: string;
 
     // Amounts
     subtotal: number;
-    taxAmount: number;
-    depositAmount: number;
-    totalAmount: number;
+    tax_amount: number;
+    security_deposit: number;
+    discount_amount: number;
+    total_amount: number;
 
     // Delivery
-    deliveryMethod: DeliveryMethod;
-    deliveryAddress: string | null;
-    billingAddress: string | null;
+    delivery_method: string; // Adjusted to string to matches backend
+    delivery_address: string | null;
+    billing_address: string | null;
 
     // Items
     items: OrderItem[];
@@ -183,27 +186,29 @@ export interface Order {
     // Relationships
     customer?: User;
     vendor?: User;
+    invoice?: Invoice;
 
-    createdAt: string;
-    updatedAt: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface OrderItem {
     id: number;
-    orderId: number;
-    productId: number;
-    variantId: number | null;
+    order_id: number;
+    product_id: number;
+    variant_id: number | null;
 
-    productName: string;
+    product_name: string;
+    product_sku?: string;
     quantity: number;
 
-    unitPrice: number;
-    lineTotal: number;
-    taxAmount: number;
+    unit_price: number;
+    line_total: number;
+    tax_amount: number;
 
     // Period
-    startDate: string;
-    endDate: string;
+    rental_start_date: string;
+    rental_end_date: string;
 
     product?: Product;
 }
@@ -230,49 +235,69 @@ export enum PaymentMethod {
 
 export interface Invoice {
     id: number;
-    invoiceNumber: string;
-    orderId: number;
-    vendorId: number;
-    customerId: number;
+    invoice_number: string;
+    order_id: number;
+    vendor_id: number;
+    customer_id: number;
 
     // Status
     status: InvoiceStatus;
 
     // Amounts
     subtotal: number;
-    taxAmount: number;
-    depositAmount: number;
-    totalAmount: number;
-    amountPaid: number;
-    amountDue: number;
+    tax_rate: number;
+    cgst: number;
+    sgst: number;
+    igst: number;
+    tax_amount: number;
 
-    // GST
-    cgstRate: number;
-    sgstRate: number;
-    igstRate: number;
-    cgstAmount: number;
-    sgstAmount: number;
-    igstAmount: number;
+    discount_amount: number;
+    security_deposit: number;
+    delivery_charges: number;
+    late_fees: number;
+
+    total_amount: number;
+    amount_paid: number;
+    amount_due: number;
+
+    // Info
+    vendor_company_name?: string;
+    vendor_gstin?: string;
+    customer_name?: string;
+    customer_gstin?: string;
+    billing_address?: string;
+    delivery_address?: string;
+    notes?: string;
+    terms_conditions?: string;
 
     // Dates
-    invoiceDate: string;
-    dueDate: string;
+    invoice_date: string;
+    due_date: string;
+    rental_start_date: string;
+    rental_end_date: string;
 
     // Items & Payments
     items: InvoiceItem[];
     payments: Payment[];
+    customer?: User;
 
-    createdAt: string;
+    created_at: string;
 }
 
 export interface InvoiceItem {
     id: number;
-    invoiceId: number;
-    productName: string;
+    invoice_id: number;
+    product_name: string;
+    product_sku?: string;
+    description?: string;
     quantity: number;
-    unitPrice: number;
-    taxAmount: number;
-    lineTotal: number;
+    unit: string;
+    unit_price: number;
+    tax_rate: number;
+    tax_amount: number;
+    line_total: number;
+    rental_start_date?: string;
+    rental_end_date?: string;
 }
 
 export interface Payment {
@@ -398,12 +423,16 @@ export interface CompanySettings {
 export interface Coupon {
     id: number;
     code: string;
-    discountType: "percentage" | "fixed";
-    discountValue: number;
-    minOrderAmount: number | null;
-    maxUsageCount: number | null;
-    usedCount: number;
-    validFrom: string;
-    validUntil: string;
-    isActive: boolean;
+    description?: string;
+    discount_type: "percentage" | "fixed";
+    discount_value: number;
+    max_discount?: number;
+    min_order_value: number;
+    usage_limit?: number;
+    per_user_limit: number;
+    usage_count: number;
+    valid_from?: string;
+    valid_until?: string;
+    is_active: boolean;
+    created_at: string;
 }

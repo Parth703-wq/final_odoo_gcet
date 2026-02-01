@@ -12,6 +12,8 @@ function NewProductContent() {
     const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
     const [categories, setCategories] = useState<any[]>([]);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>('');
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -24,6 +26,7 @@ function NewProductContent() {
         quantity_on_hand: '',
         brand: '',
         color: '',
+        image_url: '',
     });
 
     useEffect(() => {
@@ -44,11 +47,33 @@ function NewProductContent() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
 
         try {
+            let uploadedImageUrl = formData.image_url;
+
+            // Upload image if selected
+            if (imageFile) {
+                try {
+                    const uploadRes = await productsApi.uploadImage(imageFile);
+                    uploadedImageUrl = uploadRes.url;
+                } catch (error) {
+                    toast.error('Failed to upload image');
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             const productData = {
                 name: formData.name,
                 description: formData.description,
@@ -61,6 +86,7 @@ function NewProductContent() {
                 quantity_on_hand: parseInt(formData.quantity_on_hand) || 1,
                 brand: formData.brand || '',
                 color: formData.color || '',
+                image_url: uploadedImageUrl,
                 is_published: true,
                 is_rentable: true,
             };
@@ -204,6 +230,36 @@ function NewProductContent() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                     placeholder="Black"
                                 />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Product Image
+                                </label>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                        id="product-image"
+                                    />
+                                    <label
+                                        htmlFor="product-image"
+                                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg cursor-pointer font-medium transition"
+                                    >
+                                        Choose Image
+                                    </label>
+                                    {imagePreview && (
+                                        <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                                            <img
+                                                src={imagePreview}
+                                                alt="Preview"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

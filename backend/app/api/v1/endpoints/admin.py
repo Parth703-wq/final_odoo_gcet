@@ -263,3 +263,43 @@ async def validate_coupon(
         discount_amount=discount,
         message=f"Coupon applied! You save ₹{discount:.2f}"
     )
+
+
+# Export Endpoints
+
+@router.get("/export/orders")
+async def export_orders(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Export orders as CSV"""
+    from fastapi.responses import PlainTextResponse
+    from app.models.order import Order
+    
+    orders = db.query(Order).all()
+    
+    # Build CSV
+    lines = ["Order Number,Customer ID,Vendor ID,Status,Total Amount,Order Date"]
+    for o in orders:
+        lines.append(f"{o.order_number},{o.customer_id},{o.vendor_id},{o.status},{o.total_amount},{o.order_date}")
+    
+    return PlainTextResponse(content="\n".join(lines), media_type="text/csv")
+
+
+@router.get("/export/invoices")
+async def export_invoices(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Export invoices as CSV"""
+    from fastapi.responses import PlainTextResponse
+    from app.models.invoice import Invoice
+    
+    invoices = db.query(Invoice).all()
+    
+    # Build CSV
+    lines = ["Invoice Number,Order ID,Status,Amount Due,Amount Paid,Due Date"]
+    for inv in invoices:
+        lines.append(f"{inv.invoice_number},{inv.order_id},{inv.status},{inv.amount_due},{inv.amount_paid},{inv.due_date}")
+    
+    return PlainTextResponse(content="\n".join(lines), media_type="text/csv")

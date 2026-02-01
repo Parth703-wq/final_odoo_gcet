@@ -10,6 +10,8 @@ from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus
 from app.models.payment import Payment, PaymentStatus, PaymentMethod
 from app.models.reservation import Reservation, PickupDocument, ReturnDocument, ReservationStatus, StockStatus
 from app.models.settings import RentalPeriodConfig, CompanySettings, Coupon, Notification
+from app.models.review import Review
+from app.models.complaint import Complaint, ComplaintStatus
 
 __all__ = [
     # User
@@ -29,4 +31,10 @@ __all__ = [
     
     # Settings
     "RentalPeriodConfig", "CompanySettings", "Coupon", "Notification",
+    
+    # Review
+    "Review",
+    
+    # Complaint
+    "Complaint", "ComplaintStatus",
 ]

@@ -24,13 +24,33 @@ function VendorDashboardContent() {
                 ordersApi.getPendingPickups(),
             ]);
             setStats(statsData);
-            setPendingPickups(Array.isArray(pickupsData) ? pickupsData : []);
+            setPendingPickups(pickupsData?.items || (Array.isArray(pickupsData) ? pickupsData : []));
         } catch (error) {
             console.error('Dashboard error:', error);
             setStats({});
             setPendingPickups([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleMarkPickup = async (orderId: number) => {
+        try {
+            await ordersApi.markPickup(orderId, { picked_up_by: 'Customer', notes: 'Direct from dashboard' });
+            toast.success('Order marked as picked up');
+            // Remove from the list after marking as picked up
+            setPendingPickups(prev => prev.filter(o => o.id !== orderId));
+            // Also update stats if possible (decrement pending pickups)
+            if (stats) {
+                setStats({
+                    ...stats,
+                    pending_pickups: (stats.pending_pickups || 1) - 1,
+                    active_rentals: (stats.active_rentals || 0) + 1
+                });
+            }
+        } catch (error) {
+            toast.error('Failed to mark pickup');
+            fetchData();
         }
     };
 
@@ -127,12 +147,12 @@ function VendorDashboardContent() {
                                             Pickup: {order.rental_start_date ? new Date(order.rental_start_date).toLocaleDateString() : 'N/A'}
                                         </p>
                                     </div>
-                                    <Link
-                                        href={`/vendor/orders/${order.id}`}
-                                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                    <button
+                                        onClick={() => handleMarkPickup(order.id)}
+                                        className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium transition"
                                     >
-                                        Mark Pickup →
-                                    </Link>
+                                        Mark Pickup
+                                    </button>
                                 </div>
                             ))}
                         </div>

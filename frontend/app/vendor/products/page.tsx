@@ -6,6 +6,7 @@ import { UserRole } from '@/types';
 import { ProtectedRoute } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '@/lib/utils/images';
 
 function VendorProductsContent() {
     const [products, setProducts] = useState<any[]>([]);
@@ -24,8 +25,8 @@ function VendorProductsContent() {
                 productsApi.getVendorProducts(),
                 categoriesApi.list(),
             ]);
-            setProducts(Array.isArray(productsData) ? productsData : []);
-            setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+            setProducts(Array.isArray(productsData) ? productsData : productsData?.items || []);
+            setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData?.items || []);
         } catch (error) {
             console.error('Failed to load products:', error);
             setProducts([]);
@@ -156,13 +157,13 @@ function VendorProductsContent() {
                                 <div className="h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                                     {product.image_url ? (
                                         <img
-                                            src={product.image_url}
+                                            src={getImageUrl(product.image_url)}
                                             alt={product.name}
                                             className="w-full h-full object-cover"
                                         />
                                     ) : product.gallery_images && product.gallery_images.length > 0 ? (
                                         <img
-                                            src={product.gallery_images[0]}
+                                            src={getImageUrl(product.gallery_images[0])}
                                             alt={product.name}
                                             className="w-full h-full object-cover"
                                         />

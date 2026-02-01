@@ -4,10 +4,12 @@ Pydantic models for order-related API requests/responses
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 
+if TYPE_CHECKING:
+    from app.schemas.invoice import InvoiceResponse
 
 class OrderStatusEnum(str, Enum):
     """Order status enum for API"""
@@ -117,6 +119,7 @@ class OrderResponse(BaseModel):
     return_date: Optional[datetime] = None
     created_at: datetime
     items: List[OrderItemResponse] = []
+    invoice: Optional["InvoiceResponse"] = None
     
     class Config:
         from_attributes = True
@@ -177,3 +180,7 @@ class CartResponse(BaseModel):
     subtotal: float = 0.0
     tax_amount: float = 0.0
     total_amount: float = 0.0
+
+from app.schemas.invoice import InvoiceResponse
+OrderResponse.model_rebuild()
+CartResponse.model_rebuild()

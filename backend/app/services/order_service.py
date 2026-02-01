@@ -167,10 +167,17 @@ class OrderService:
     
     def get_customer_cart(self, customer_id: int) -> Optional[Order]:
         """Get customer's active cart (quotation)"""
-        return self.db.query(Order).filter(
+        cart = self.db.query(Order).filter(
             Order.customer_id == customer_id,
             Order.status == OrderStatus.QUOTATION
         ).first()
+        
+        if cart:
+            cart.calculate_totals()
+            self.db.commit()
+            self.db.refresh(cart)
+            
+        return cart
     
     def add_to_cart(self, customer_id: int, item: OrderItemCreate) -> Order:
         """Add item to cart (create or update quotation)"""
@@ -232,6 +239,7 @@ class OrderService:
             order_item.calculate_total(cart.tax_rate)
             cart.items.append(order_item)
             cart.security_deposit += product.security_deposit * item.quantity
+        
         
         self.db.flush()
         cart.calculate_totals()

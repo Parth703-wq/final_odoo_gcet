@@ -157,7 +157,20 @@ class InvoiceItem(Base):
     tax_amount = Column(Float, default=0.0)
     
     # Total
+    line_subtotal = Column(Float, default=0.0)
     line_total = Column(Float, default=0.0)
     
     # Relationships
     invoice = relationship("Invoice", back_populates="items")
+
+    def calculate_total(self):
+        """Calculate line total"""
+        self.line_subtotal = self.quantity * self.unit_price
+        # Simple daily calculation if dates present
+        if self.rental_start_date and self.rental_end_date:
+            days = (self.rental_end_date - self.rental_start_date).days
+            if days > 0:
+                self.line_subtotal *= days
+        
+        self.tax_amount = self.line_subtotal * (self.tax_rate / 100)
+        self.line_total = self.line_subtotal + self.tax_amount

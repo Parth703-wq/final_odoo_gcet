@@ -131,6 +131,7 @@ class ProductResponse(ProductBase):
     id: int
     vendor_id: int
     quantity_reserved: int = 0
+    available_quantity: int = 0
     is_rentable: bool
     is_published: bool
     created_at: datetime

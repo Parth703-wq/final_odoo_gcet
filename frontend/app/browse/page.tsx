@@ -5,6 +5,7 @@ import { productsApi, categoriesApi } from '@/lib/api/endpoints';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '@/lib/utils/images';
 
 export default function BrowseProductsPage() {
     const { user } = useAuth();
@@ -25,8 +26,8 @@ export default function BrowseProductsPage() {
                 productsApi.list({ category_id: selectedCategory, is_published: true }),
                 categoriesApi.list(),
             ]);
-            setProducts(Array.isArray(productsData) ? productsData : []);
-            setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+            setProducts(Array.isArray(productsData) ? productsData : productsData?.items || []);
+            setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData?.items || []);
         } catch (error: any) {
             console.error('Failed to load products', error);
             setProducts([]);
@@ -165,13 +166,13 @@ export default function BrowseProductsPage() {
                                         <div className="relative h-48 bg-gray-200">
                                             {product.image_url ? (
                                                 <img
-                                                    src={product.image_url}
+                                                    src={getImageUrl(product.image_url)}
                                                     alt={product.name}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                 />
                                             ) : product.gallery_images && product.gallery_images.length > 0 ? (
                                                 <img
-                                                    src={product.gallery_images[0]}
+                                                    src={getImageUrl(product.gallery_images[0])}
                                                     alt={product.name}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                 />
@@ -196,7 +197,7 @@ export default function BrowseProductsPage() {
                                                     <span className="text-sm text-gray-500">/day</span>
                                                 </div>
                                                 <span className="text-sm text-gray-500">
-                                                    {product.quantity_on_hand || 0} available
+                                                    {(product.available_quantity ?? product.quantity_on_hand) || 0} available
                                                 </span>
                                             </div>
                                         </div>

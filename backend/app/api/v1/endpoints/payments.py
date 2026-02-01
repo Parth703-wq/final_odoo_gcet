@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 
+=======
+"""
+Payments API Router - Razorpay Integration
+"""
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any, List
@@ -6,6 +12,10 @@ from typing import Any, List
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
+<<<<<<< HEAD
+=======
+from app.models.invoice import Payment
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
 from app.schemas.payment import (
     RazorpayOrderCreate, 
     RazorpayOrderResponse, 
@@ -16,6 +26,10 @@ from app.services.payment_service import PaymentService
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
 @router.post("/razorpay/order", response_model=RazorpayOrderResponse)
 async def create_razorpay_order(
     order_in: RazorpayOrderCreate,
@@ -38,6 +52,10 @@ async def create_razorpay_order(
             detail=str(e)
         )
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
 @router.post("/razorpay/verify", response_model=PaymentResponse)
 async def verify_payment(
     verify_in: PaymentVerify,
@@ -66,12 +84,19 @@ async def verify_payment(
         
     return payment
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
 @router.get("/my-payments", response_model=List[PaymentResponse])
 async def get_my_payments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """Get all payments made by the current user"""
+<<<<<<< HEAD
     from app.models.payment import Payment
+=======
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
     payments = db.query(Payment).filter(Payment.customer_id == current_user.id).all()
     return payments

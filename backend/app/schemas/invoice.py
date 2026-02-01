@@ -4,10 +4,12 @@ Pydantic models for invoice and payment API requests/responses
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 
+if TYPE_CHECKING:
+    from app.schemas.user import UserResponse
 
 class InvoiceStatusEnum(str, Enum):
     """Invoice status enum"""
@@ -105,7 +107,15 @@ class InvoiceResponse(BaseModel):
     created_at: datetime
     items: List[InvoiceItemResponse]
     
+<<<<<<< HEAD
     model_config = {"from_attributes": True}
+=======
+    # Add customer details (using forward reference to avoid circular import)
+    customer: Optional["UserResponse"] = None
+    
+    class Config:
+        from_attributes = True
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
 
 
 class InvoiceListResponse(BaseModel):
@@ -169,3 +179,9 @@ class PaymentListResponse(BaseModel):
     page: int
     per_page: int
     pages: int
+
+# Rebuild models for forward references
+from app.schemas.user import UserResponse
+InvoiceResponse.model_rebuild()
+InvoiceListResponse.model_rebuild()
+

@@ -36,17 +36,21 @@ class DashboardService:
         ).scalar() or 0
         
         # Today's revenue
+        from app.models.invoice import PaymentStatus
         today_revenue = self.db.query(func.sum(Payment.amount)).filter(
+            Payment.status == PaymentStatus.COMPLETED,
             Payment.payment_date >= today_start
         ).scalar() or 0
         
         # Week revenue
         week_revenue = self.db.query(func.sum(Payment.amount)).filter(
+            Payment.status == PaymentStatus.COMPLETED,
             Payment.payment_date >= week_start
         ).scalar() or 0
         
         # Month revenue
         month_revenue = self.db.query(func.sum(Payment.amount)).filter(
+            Payment.status == PaymentStatus.COMPLETED,
             Payment.payment_date >= month_start
         ).scalar() or 0
         
@@ -100,18 +104,22 @@ class DashboardService:
             Invoice.status.in_([InvoiceStatus.PAID, InvoiceStatus.PARTIALLY_PAID])
         ).scalar() or 0
         
+        from app.models.invoice import PaymentStatus
         today_revenue = self.db.query(func.sum(Payment.amount)).join(Invoice).filter(
             Invoice.vendor_id == vendor_id,
+            Payment.status == PaymentStatus.COMPLETED,
             Payment.payment_date >= today_start
         ).scalar() or 0
         
         week_revenue = self.db.query(func.sum(Payment.amount)).join(Invoice).filter(
             Invoice.vendor_id == vendor_id,
+            Payment.status == PaymentStatus.COMPLETED,
             Payment.payment_date >= week_start
         ).scalar() or 0
         
         month_revenue = self.db.query(func.sum(Payment.amount)).join(Invoice).filter(
             Invoice.vendor_id == vendor_id,
+            Payment.status == PaymentStatus.COMPLETED,
             Payment.payment_date >= month_start
         ).scalar() or 0
         
@@ -163,18 +171,21 @@ class DashboardService:
         vendor_id: Optional[int] = None,
         days: int = 30
     ) -> List[Dict[str, Any]]:
-        """Get revenue chart data for last N days"""
+        """Get revenue chart data for last N days (including today)"""
         now = datetime.utcnow()
-        start_date = now - timedelta(days=days)
+        # Ensure we cover the full today
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = today_start - timedelta(days=days-1)
         
+        from app.models.invoice import PaymentStatus
         chart_data = []
         
         for i in range(days):
-            day = start_date + timedelta(days=i)
-            day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start = start_date + timedelta(days=i)
             day_end = day_start + timedelta(days=1)
             
             query = self.db.query(func.sum(Payment.amount)).filter(
+                Payment.status == PaymentStatus.COMPLETED,
                 Payment.payment_date >= day_start,
                 Payment.payment_date < day_end
             )
@@ -196,15 +207,17 @@ class DashboardService:
         vendor_id: Optional[int] = None,
         limit: int = 10
     ) -> List[Dict[str, Any]]:
-        """Get most rented products"""
-        from app.models.order import OrderItem
+        """Get most rented products (Confirmed orders only)"""
+        from app.models.order import OrderItem, Order, OrderStatus
         
         query = self.db.query(
             Product.id,
             Product.name,
             func.count(OrderItem.id).label("rental_count"),
             func.sum(OrderItem.line_total).label("revenue")
-        ).join(OrderItem, Product.id == OrderItem.product_id)
+        ).join(OrderItem, Product.id == OrderItem.product_id)\
+         .join(Order, OrderItem.order_id == Order.id)\
+         .filter(Order.status.notin_([OrderStatus.QUOTATION, OrderStatus.CANCELLED]))
         
         if vendor_id:
             query = query.filter(Product.vendor_id == vendor_id)

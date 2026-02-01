@@ -98,7 +98,16 @@ class Order(Base):
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="order", lazy="dynamic")
     reservations = relationship("Reservation", back_populates="order", lazy="dynamic")
+<<<<<<< HEAD
     payments = relationship("Payment", back_populates="order")
+=======
+    payments = relationship("Payment", back_populates="order", lazy="dynamic")
+    
+    @property
+    def invoice(self):
+        """Returns the primary (first) invoice for this order"""
+        return self.invoices.first()
+>>>>>>> aaa4283 (Complete Order Invoice flow, PDF generation fixes, and system-wide improvements)
     
     def calculate_totals(self):
         """Recalculate order totals"""
@@ -149,7 +158,19 @@ class OrderItem(Base):
     product = relationship("Product", back_populates="order_items")
     
     def calculate_total(self, tax_rate: float = 18.0):
-        """Calculate line total"""
-        self.line_subtotal = self.quantity * self.unit_price
+        """Calculate line total based on duration and quantity"""
+        duration = 1
+        if self.rental_start_date and self.rental_end_date:
+            delta = self.rental_end_date - self.rental_start_date
+            if self.rental_period_type == "hourly":
+                duration = max(1, int(delta.total_seconds() / 3600))
+            elif self.rental_period_type == "daily":
+                duration = max(1, delta.days)
+            elif self.rental_period_type == "weekly":
+                duration = max(1, delta.days // 7)
+            elif self.rental_period_type == "monthly":
+                duration = max(1, delta.days // 30)
+        
+        self.line_subtotal = self.quantity * self.unit_price * duration
         self.tax_amount = self.line_subtotal * (tax_rate / 100)
         self.line_total = self.line_subtotal + self.tax_amount

@@ -11,8 +11,9 @@ export default function CustomerSignupPage() {
     const [formData, setFormData] = useState({
         email: '',
         password: '',
-        firstName: '',
-        lastName: '',
+        confirm_password: '',
+        first_name: '',
+        last_name: '',
         phone: '',
     });
     const [loading, setLoading] = useState(false);
@@ -57,29 +58,29 @@ export default function CustomerSignupPage() {
                         {/* Name Fields */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
                                     First Name
                                 </label>
                                 <input
-                                    id="firstName"
-                                    name="firstName"
+                                    id="first_name"
+                                    name="first_name"
                                     type="text"
                                     required
-                                    value={formData.firstName}
+                                    value={formData.first_name}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                 />
                             </div>
                             <div>
-                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
                                     Last Name
                                 </label>
                                 <input
-                                    id="lastName"
-                                    name="lastName"
+                                    id="last_name"
+                                    name="last_name"
                                     type="text"
                                     required
-                                    value={formData.lastName}
+                                    value={formData.last_name}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                                 />
@@ -121,25 +122,43 @@ export default function CustomerSignupPage() {
                         </div>
 
                         {/* Password */}
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                required
-                                minLength={8}
-                                value={formData.password}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="Minimum 8 characters"
-                            />
-                            <p className="mt-1 text-xs text-gray-500">
-                                Must contain uppercase, lowercase, number, and special character
-                            </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Password
+                                </label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    required
+                                    minLength={8}
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Confirm
+                                </label>
+                                <input
+                                    id="confirm_password"
+                                    name="confirm_password"
+                                    type="password"
+                                    required
+                                    minLength={8}
+                                    value={formData.confirm_password}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="••••••••"
+                                />
+                            </div>
                         </div>
+                        <p className="mt-1 text-[10px] text-gray-500">
+                            Must contain uppercase, lowercase, digit, and special char.
+                        </p>
 
                         {/* Submit Button */}
                         <button

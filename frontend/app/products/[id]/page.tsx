@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { productsApi, ordersApi } from '@/lib/api/endpoints';
+import { productsApi, ordersApi, reviewsApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/contexts/AuthContext';
+import { Star, MessageSquare, Quote } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { formatErrorMessage } from '@/lib/utils/errors';
+import { getImageUrl } from '@/lib/utils/images';
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -15,6 +17,8 @@ export default function ProductDetailPage() {
     const [product, setProduct] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [addingToCart, setAddingToCart] = useState(false);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [loadingReviews, setLoadingReviews] = useState(true);
 
     const [formData, setFormData] = useState({
         quantity: 1,
@@ -22,6 +26,8 @@ export default function ProductDetailPage() {
         endDate: '',
         rentalPeriod: 'daily',
     });
+    const [availability, setAvailability] = useState<{ is_available: boolean, available_quantity: number } | null>(null);
+    const [checkingAvailability, setCheckingAvailability] = useState(false);
 
     useEffect(() => {
         fetchProduct();
@@ -31,10 +37,38 @@ export default function ProductDetailPage() {
         try {
             const data = await productsApi.getById(Number(params.id));
             setProduct(data);
+
+            // Fetch reviews
+            const reviewsData = await reviewsApi.getProductReviews(Number(params.id));
+            setReviews(reviewsData.items || []);
         } catch (error) {
             toast.error('Failed to load product');
         } finally {
             setLoading(false);
+            setLoadingReviews(false);
+        }
+    };
+
+    useEffect(() => {
+        if (formData.startDate && formData.endDate && product) {
+            checkAvailability();
+        }
+    }, [formData.startDate, formData.endDate, formData.quantity, product]);
+
+    const checkAvailability = async () => {
+        setCheckingAvailability(true);
+        try {
+            const result = await productsApi.checkAvailability({
+                product_id: product.id,
+                start_date: formData.startDate,
+                end_date: formData.endDate,
+                quantity: formData.quantity
+            });
+            setAvailability(result);
+        } catch (error) {
+            console.error('Failed to check availability');
+        } finally {
+            setCheckingAvailability(false);
         }
     };
 
@@ -101,20 +135,20 @@ export default function ProductDetailPage() {
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-12">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
                         {/* Product Image */}
                         <div>
                             <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
                                 {product.image_url ? (
                                     <img
-                                        src={product.image_url}
+                                        src={getImageUrl(product.image_url)}
                                         alt={product.name}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : product.gallery_images && product.gallery_images.length > 0 ? (
                                     <img
-                                        src={product.gallery_images[0]}
+                                        src={getImageUrl(product.gallery_images[0])}
                                         alt={product.name}
                                         className="w-full h-full object-cover"
                                     />
@@ -173,7 +207,19 @@ export default function ProductDetailPage() {
                                         onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                     />
-                                    <p className="text-sm text-gray-500 mt-1">{product.quantity_on_hand || 0} available</p>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        {checkingAvailability ? (
+                                            <span className="animate-pulse">Checking stock...</span>
+                                        ) : availability ? (
+                                            availability.is_available ? (
+                                                <span className="text-green-600 font-bold">✓ {availability.available_quantity} available for these dates</span>
+                                            ) : (
+                                                <span className="text-red-600 font-bold">✗ Only {availability.available_quantity} available for these dates</span>
+                                            )
+                                        ) : (
+                                            <span>{product.quantity_on_hand || 0} total units in stock</span>
+                                        )}
+                                    </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -225,7 +271,7 @@ export default function ProductDetailPage() {
                                 disabled={addingToCart}
                                 className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
                             >
-                                {addingToCart ? 'Adding to Cart...' : 'Add to Cart'}
+                                {addingToCart ? 'Adding to Cart...' : (availability?.is_available === false ? 'Out of Stock' : 'Add to Cart')}
                             </button>
 
                             {/* Product Details */}
@@ -253,6 +299,70 @@ export default function ProductDetailPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Reviews Section */}
+                {reviews.length > 0 && (
+                    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-10">
+                        <div className="bg-indigo-600 p-10 text-white flex justify-between items-end">
+                            <div className="space-y-2">
+                                <h2 className="text-3xl font-black flex items-center gap-3">
+                                    <Star className="w-8 h-8 fill-amber-400 text-amber-400" /> Customer Voice
+                                </h2>
+                                <p className="text-indigo-100 text-sm opacity-80 uppercase tracking-widest font-bold font-mono">Real feedback from verified renters</p>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-5xl font-black">
+                                    {(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)}
+                                </div>
+                                <div className="text-[10px] uppercase font-black tracking-tighter opacity-50">Global Rating</div>
+                            </div>
+                        </div>
+
+                        <div className="p-10">
+                            {loadingReviews ? (
+                                <div className="flex justify-center py-10">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {reviews.map((review, idx) => (
+                                        <div key={idx} className="group relative bg-gray-50/50 hover:bg-white p-8 rounded-3xl border border-gray-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-transparent hover:border-indigo-100">
+                                            <div className="absolute top-6 right-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                <Quote className="w-12 h-12 text-indigo-900" />
+                                            </div>
+
+                                            <div className="flex items-center gap-3 mb-6">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-400 flex items-center justify-center text-white font-black text-sm">
+                                                    {review.customer_name?.[0] || 'U'}
+                                                </div>
+                                                <div>
+                                                    <div className="font-black text-gray-900 text-sm leading-tight">{review.customer_name}</div>
+                                                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Verified Renter</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex mb-4">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <Star
+                                                        key={star}
+                                                        className={`w-3.5 h-3.5 ${star <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
+                                                    />
+                                                ))}
+                                            </div>
+
+                                            <p className="text-gray-600 text-sm leading-relaxed line-clamp-4 group-hover:line-clamp-none transition-all">"{review.comment}"</p>
+
+                                            <div className="mt-6 pt-6 border-t border-gray-100 flex justify-between items-center text-[9px] uppercase font-black tracking-widest text-gray-300">
+                                                <span>Posted Date</span>
+                                                <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

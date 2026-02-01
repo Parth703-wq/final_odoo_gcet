@@ -23,13 +23,17 @@ function AdminDashboardContent() {
                 dashboardApi.getAdminStats(),
                 adminApi.listUsers(),
             ]);
-            const usersList = Array.isArray(usersData) ? usersData : [];
+            // Extract items from paginated response
+            const usersList = usersData?.items || (Array.isArray(usersData) ? usersData : []);
             const s = statsData as any;
-            // If stats don't have totalUsers, calculate from usersList
+
+            // Calculate total users if not directly provided
+            const totalUsersCount = (s?.total_customers || 0) + (s?.total_vendors || 0) + (s?.total_admins || 0);
+
             const finalStats = {
                 ...statsData,
-                total_users: s?.total_users || s?.totalUsers || usersList.length,
-                totalUsers: s?.total_users || s?.totalUsers || usersList.length,
+                total_users: s?.total_users || s?.totalUsers || totalUsersCount || usersList.length,
+                totalUsers: s?.total_users || s?.totalUsers || totalUsersCount || usersList.length,
             };
             setStats(finalStats);
             setUsers(usersList.slice(0, 5)); // Show first 5 users
@@ -73,6 +77,12 @@ function AdminDashboardContent() {
                                 className="text-blue-600 hover:text-blue-700 font-medium"
                             >
                                 Manage Users
+                            </Link>
+                            <Link
+                                href="/admin/complaints"
+                                className="text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                Manage Complaints
                             </Link>
                             <Link
                                 href="/admin/settings"
@@ -213,6 +223,13 @@ function AdminDashboardContent() {
                     >
                         <div className="text-4xl mb-2">📊</div>
                         <h3 className="font-semibold">View Reports</h3>
+                    </Link>
+                    <Link
+                        href="/admin/complaints"
+                        className="bg-red-600 text-white rounded-lg p-6 hover:bg-red-700 transition text-center"
+                    >
+                        <div className="text-4xl mb-2">🚩</div>
+                        <h3 className="font-semibold">Manage Complaints</h3>
                     </Link>
                 </div>
             </div>

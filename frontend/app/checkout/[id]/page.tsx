@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ordersApi, invoicesApi } from '@/lib/api/endpoints';
+import { ordersApi, invoicesApi, paymentsApi } from '@/lib/api/endpoints';
 import { Order, Invoice } from '@/types';
 import toast from 'react-hot-toast';
 import { formatErrorMessage } from '@/lib/utils/errors';
@@ -41,9 +41,17 @@ export default function CheckoutPage() {
             const orderData = await ordersApi.getById(Number(params.id));
             setOrder(orderData);
 
-            // Create invoice
-            const invoiceData = await invoicesApi.create(orderData.id);
-            setInvoice(invoiceData);
+            // If already confirmed, it might have an invoice
+            if (orderData.status !== 'quotation') {
+                try {
+                    const invoices = await invoicesApi.list({ order_id: orderData.id });
+                    if (invoices.items && invoices.items.length > 0) {
+                        setInvoice(invoices.items[0]);
+                    }
+                } catch (e) {
+                    // Ignore invoice fetch error
+                }
+            }
         } catch (error) {
             toast.error('Failed to load order');
         } finally {
@@ -52,44 +60,56 @@ export default function CheckoutPage() {
     };
 
     const handleConfirmOrder = async () => {
-        if (!order || !invoice) return;
+        if (!order) return;
 
         setProcessing(true);
         try {
-            // Confirm order
-            await ordersApi.confirmOrder(order.id, formData);
-
-            // Create Razorpay order
-            const razorpayOrder = await invoicesApi.createRazorpayOrder({
-                invoice_id: invoice.id,
-                amount: invoice.amountDue,
+            // 1. Confirm order (this generates the invoice on backend)
+            await ordersApi.confirmOrder(order.id, {
+                billing_address: formData.billingAddress,
+                delivery_address: formData.deliveryAddress,
+                terms_accepted: true
             });
 
-            // Open Razorpay payment
+            // 2. Fetch the newly created invoice
+            const invoices = await invoicesApi.list({ order_id: order.id });
+            if (!invoices.items || invoices.items.length === 0) {
+                toast.error('Invoice not generated yet. Please try paying from the order page.');
+                router.push('/orders');
+                return;
+            }
+            const currentInvoice = invoices.items[0];
+            setInvoice(currentInvoice);
+
+            // 3. Create Razorpay order
+            const razorpayOrder = await paymentsApi.createRazorpayOrder({
+                invoice_id: currentInvoice.id,
+                amount: currentInvoice.amount_due,
+            });
+
+            // 4. Open Razorpay payment
             const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                key: razorpayOrder.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: razorpayOrder.amount,
                 currency: razorpayOrder.currency,
                 name: 'Rental Management System',
-                description: `Invoice #${invoice.invoiceNumber}`,
-                order_id: razorpayOrder.id,
+                description: `Invoice #${currentInvoice.invoice_number}`,
+                order_id: razorpayOrder.razorpay_order_id,
                 handler: async function (response: any) {
                     try {
-                        await invoicesApi.verifyPayment({
+                        await paymentsApi.verifyPayment({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
-                            invoice_id: invoice.id,
                         });
                         toast.success('Payment successful!');
-                        router.push('/orders');
+                        router.push(`/checkout/success/${order.id}`);
                     } catch (error) {
                         toast.error('Payment verification failed');
                     }
                 },
                 prefill: {
                     email: order.customer?.email || '',
-                    contact: order.customer?.phone || '',
                 },
             };
 
@@ -110,7 +130,7 @@ export default function CheckoutPage() {
         );
     }
 
-    if (!order || !invoice) {
+    if (!order) {
         return <div>Order not found</div>;
     }
 
@@ -174,26 +194,26 @@ export default function CheckoutPage() {
                             <div className="space-y-3">
                                 {order.items.map((item) => (
                                     <div key={item.id} className="flex justify-between text-sm">
-                                        <span className="text-gray-600">{item.productName} x{item.quantity}</span>
-                                        <span className="font-medium">₹{item.lineTotal}</span>
+                                        <span className="text-gray-600">{item.product_name} x{item.quantity}</span>
+                                        <span className="font-medium">₹{item.line_total}</span>
                                     </div>
                                 ))}
                                 <div className="border-t pt-3 space-y-2">
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Subtotal</span>
-                                        <span className="font-medium">₹{invoice.subtotal}</span>
+                                        <span className="font-medium">₹{order.subtotal}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Tax (GST)</span>
-                                        <span className="font-medium">₹{invoice.taxAmount}</span>
+                                        <span className="font-medium">₹{order.tax_amount}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Deposit</span>
-                                        <span className="font-medium">₹{invoice.depositAmount}</span>
+                                        <span className="font-medium">₹{order.security_deposit}</span>
                                     </div>
                                     <div className="flex justify-between text-lg font-bold border-t pt-2">
                                         <span>Total</span>
-                                        <span className="text-blue-600">₹{invoice.totalAmount}</span>
+                                        <span className="text-blue-600">₹{order.total_amount}</span>
                                     </div>
                                 </div>
                             </div>

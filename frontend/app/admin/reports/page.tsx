@@ -28,15 +28,18 @@ function ReportsContent() {
 
     const fetchStats = async () => {
         try {
-            const [users, products, orders] = await Promise.all([
+            const [usersRes, productsRes, ordersRes] = await Promise.all([
                 adminApi.listUsers(),
                 productsApi.list(),
                 ordersApi.list(),
             ]);
 
-            const usersList = Array.isArray(users) ? users : [];
-            const productsList = Array.isArray(products) ? products : [];
-            const ordersList = Array.isArray(orders) ? orders : [];
+            // Extract items from paginated responses
+            const usersList = usersRes?.items || (Array.isArray(usersRes) ? usersRes : []);
+            const productsList = productsRes?.items || (Array.isArray(productsRes) ? productsRes : []);
+            const ordersList = ordersRes?.items || (Array.isArray(ordersRes) ? ordersRes : []);
+
+            console.log('Fetched data:', { usersList, productsList, ordersList });
 
             setStats({
                 totalUsers: usersList.length,
@@ -44,9 +47,9 @@ function ReportsContent() {
                 vendors: usersList.filter((u: any) => u.role === 'vendor').length,
                 admins: usersList.filter((u: any) => u.role === 'admin').length,
                 totalProducts: productsList.length,
-                activeProducts: productsList.filter((p: any) => p.is_published).length,
+                activeProducts: productsList.filter((p: any) => p.is_published || p.isPublished).length,
                 totalOrders: ordersList.length,
-                pendingOrders: ordersList.filter((o: any) => o.status === 'pending' || o.status === 'cart').length,
+                pendingOrders: ordersList.filter((o: any) => o.status === 'pending' || o.status === 'quotation' || o.status === 'cart').length,
                 completedOrders: ordersList.filter((o: any) => o.status === 'completed' || o.status === 'returned').length,
             });
         } catch (error) {

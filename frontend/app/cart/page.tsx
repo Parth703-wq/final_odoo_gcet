@@ -107,25 +107,37 @@ export default function CartPage() {
                         <div className="lg:col-span-2 space-y-4">
                             {items.map((item: any) => (
                                 <div key={item.id} className="bg-white rounded-lg shadow-sm p-6">
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between items-start">
                                         <div className="flex-1">
-                                            <h3 className="font-semibold text-gray-900 text-lg">
+                                            <h3 className="font-bold text-gray-900 text-xl tracking-tight">
                                                 {item.product_name || item.productName || 'Product'}
                                             </h3>
-                                            <p className="text-sm text-gray-500 mt-1">
-                                                {item.rental_start_date ? new Date(item.rental_start_date).toLocaleDateString() : 'N/A'} - {item.rental_end_date ? new Date(item.rental_end_date).toLocaleDateString() : 'N/A'}
-                                            </p>
-                                            <div className="mt-3">
-                                                <span className="text-gray-600">Quantity: {item.quantity}</span>
-                                                <span className="mx-4">•</span>
-                                                <span className="text-gray-600">₹{item.unit_price || item.unitPrice || 0}/day</span>
+                                            <div className="flex items-center gap-2 mt-1 text-sm text-gray-400 font-medium">
+                                                <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                    {(() => {
+                                                        const start = new Date(item.rental_start_date);
+                                                        const end = new Date(item.rental_end_date);
+                                                        const diff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)));
+                                                        return `${diff} ${diff === 1 ? 'Day' : 'Days'}`;
+                                                    })()}
+                                                </span>
+                                                <span>{item.rental_start_date ? new Date(item.rental_start_date).toLocaleDateString() : 'N/A'} - {item.rental_end_date ? new Date(item.rental_end_date).toLocaleDateString() : 'N/A'}</span>
+                                            </div>
+                                            <div className="mt-4 flex items-baseline gap-1">
+                                                <span className="text-gray-900 font-bold">Qty: {item.quantity}</span>
+                                                <span className="text-gray-400 font-medium mx-1">×</span>
+                                                <span className="text-gray-900 font-bold">₹{item.unit_price || item.unitPrice || 0}</span>
+                                                <span className="text-gray-400 text-xs">/day</span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                                                Base: ₹{item.line_subtotal || (item.lineSubtotal || 0)} + Tax: ₹{item.tax_amount || (item.taxAmount || 0)}
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-2xl font-bold text-gray-900">₹{item.line_total || item.lineTotal || 0}</div>
+                                            <div className="text-2xl font-black text-gray-900">₹{item.line_total || item.lineTotal || 0}</div>
                                             <button
                                                 onClick={() => handleRemoveItem(item.id)}
-                                                className="mt-2 text-sm text-red-600 hover:text-red-700"
+                                                className="mt-3 text-[10px] items-center gap-1 font-black uppercase tracking-widest text-red-500 hover:text-red-700 flex ml-auto transition"
                                             >
                                                 Remove
                                             </button>
@@ -150,7 +162,7 @@ export default function CartPage() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Security Deposit</span>
-                                        <span className="font-medium">₹{order?.deposit_amount || 0}</span>
+                                        <span className="font-medium">₹{order?.security_deposit || 0}</span>
                                     </div>
                                     <div className="border-t pt-3">
                                         <div className="flex justify-between">

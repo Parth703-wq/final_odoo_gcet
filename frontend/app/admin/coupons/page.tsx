@@ -13,13 +13,14 @@ function CouponsContent() {
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState<Partial<Coupon>>({
         code: '',
-        discountType: 'percentage',
-        discountValue: 0,
-        minOrderAmount: null,
-        maxUsageCount: null,
-        validFrom: new Date().toISOString().split('T')[0],
-        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        isActive: true
+        description: '',
+        discount_type: 'percentage',
+        discount_value: 0,
+        min_order_value: 0,
+        usage_limit: undefined,
+        valid_from: new Date().toISOString().split('T')[0],
+        valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        is_active: true
     });
 
     useEffect(() => {
@@ -29,7 +30,7 @@ function CouponsContent() {
     const fetchCoupons = async () => {
         try {
             const data = await adminApi.listCoupons();
-            setCoupons(data);
+            setCoupons(Array.isArray(data) ? data : []);
         } catch (error) {
             toast.error('Failed to load coupons');
         } finally {
@@ -41,29 +42,49 @@ function CouponsContent() {
         const { name, value, type } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'number' ? (value === '' ? null : parseFloat(value)) : value
+            [name]: type === 'number' ? (value === '' ? undefined : parseFloat(value)) : value
         }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await adminApi.createCoupon(formData);
+            // Format dates as ISO datetime strings for backend
+            const payload = {
+                code: formData.code,
+                description: formData.description || '',
+                discount_type: formData.discount_type,
+                discount_value: Number(formData.discount_value) || 0,
+                min_order_value: Number(formData.min_order_value) || 0,
+                usage_limit: formData.usage_limit ? Number(formData.usage_limit) : null,
+                per_user_limit: 1,
+                valid_from: formData.valid_from ? new Date(formData.valid_from).toISOString() : null,
+                valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
+                is_active: formData.is_active ?? true,
+            };
+            console.log('Creating coupon with payload:', JSON.stringify(payload, null, 2));
+            const result = await adminApi.createCoupon(payload);
+            console.log('Coupon created:', result);
             toast.success('Coupon created successfully');
             setShowForm(false);
             setFormData({
                 code: '',
-                discountType: 'percentage',
-                discountValue: 0,
-                minOrderAmount: null,
-                maxUsageCount: null,
-                validFrom: new Date().toISOString().split('T')[0],
-                validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                isActive: true
+                description: '',
+                discount_type: 'percentage',
+                discount_value: 0,
+                min_order_value: 0,
+                usage_limit: undefined,
+                valid_from: new Date().toISOString().split('T')[0],
+                valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                is_active: true
             });
             fetchCoupons();
-        } catch (error) {
-            toast.error('Failed to create coupon');
+        } catch (error: any) {
+            console.error('Coupon creation error - Full error:', error);
+            console.error('Coupon creation error - Response:', error.response);
+            console.error('Coupon creation error - Data:', error.response?.data);
+            console.error('Coupon creation error - Status:', error.response?.status);
+            toast.error(error.response?.data?.detail || error.message || 'Failed to create coupon');
         }
     };
 
@@ -130,8 +151,8 @@ function CouponsContent() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Discount Type *</label>
                                 <select
-                                    name="discountType"
-                                    value={formData.discountType}
+                                    name="discount_type"
+                                    value={formData.discount_type}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                                 >
@@ -141,35 +162,35 @@ function CouponsContent() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Discount Value * ({formData.discountType === 'percentage' ? '%' : '₹'})
+                                    Discount Value * ({formData.discount_type === 'percentage' ? '%' : '₹'})
                                 </label>
                                 <input
                                     type="number"
                                     step="0.01"
-                                    name="discountValue"
-                                    value={formData.discountValue}
+                                    name="discount_value"
+                                    value={formData.discount_value}
                                     onChange={handleChange}
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Min Order Amount (₹)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Min Order Value (₹)</label>
                                 <input
                                     type="number"
                                     step="0.01"
-                                    name="minOrderAmount"
-                                    value={formData.minOrderAmount || ''}
+                                    name="min_order_value"
+                                    value={formData.min_order_value || ''}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Max Usage Count</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Max Usage Count (Optional)</label>
                                 <input
                                     type="number"
-                                    name="maxUsageCount"
-                                    value={formData.maxUsageCount || ''}
+                                    name="usage_limit"
+                                    value={formData.usage_limit || ''}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                                 />
@@ -178,8 +199,8 @@ function CouponsContent() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Valid From *</label>
                                 <input
                                     type="date"
-                                    name="validFrom"
-                                    value={formData.validFrom}
+                                    name="valid_from"
+                                    value={formData.valid_from}
                                     onChange={handleChange}
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
@@ -189,8 +210,8 @@ function CouponsContent() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Valid Until *</label>
                                 <input
                                     type="date"
-                                    name="validUntil"
-                                    value={formData.validUntil}
+                                    name="valid_until"
+                                    value={formData.valid_until}
                                     onChange={handleChange}
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
@@ -236,20 +257,20 @@ function CouponsContent() {
                                             {coupon.code}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `₹${coupon.discountValue}`}
+                                            {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `₹${coupon.discount_value}`}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {coupon.minOrderAmount ? `₹${coupon.minOrderAmount}` : '-'}
+                                            {coupon.min_order_value ? `₹${coupon.min_order_value}` : '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {coupon.usedCount} / {coupon.maxUsageCount || '∞'}
+                                            {coupon.usage_count} / {coupon.usage_limit || '∞'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {new Date(coupon.validUntil).toLocaleDateString()}
+                                            {coupon.valid_until ? new Date(coupon.valid_until).toLocaleDateString() : '∞'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${coupon.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {coupon.isActive ? 'Active' : 'Inactive'}
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${coupon.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {coupon.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
